@@ -1,0 +1,11 @@
+
+{
+  "name": "GlowCare - Your Skin Journal",
+  "short_name": "GlowCare",
+  "description": "Your personal skincare companion",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#10110f",
+  "theme_color": "#10110f"
+}
