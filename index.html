@@ -28,7 +28,7 @@ button{background:#c9f27a;color:#171b10;border:0;font-weight:bold;cursor:pointer
 .tabs button{background:#292d25;color:#eee}
 .tabs button.active{background:#c9f27a;color:#171b10}
 .item{display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-bottom:1px solid #34382f}
-.item input{accent-color:#c9f27a;width:18px;height:18px;margin-top:3px}
+.item input{accent-color:#c9f27a;width:18px;height:18px;margin-top:3px;flex-shrink:0}
 .item strong{display:block;margin-bottom:5px}
 .item small{color:#a7aa9e;line-height:1.5}
 .progress{height:7px;background:#34382f;border-radius:10px;overflow:hidden}
@@ -52,7 +52,7 @@ footer{text-align:center;padding:25px;color:#92968a;font-size:12px}
 <section class="card">
   <h2>Discover your skin</h2>
   <label for="skin">What's your skin type?</label>
-  <select id="skin">
+  <select id="skin" onchange="saveSkin()">
     <option value="normal">Normal</option>
     <option value="oily">Oily</option>
     <option value="dry">Dry</option>
@@ -78,9 +78,9 @@ footer{text-align:center;padding:25px;color:#92968a;font-size:12px}
 
 <section class="card">
   <h2>Daily skin habits 💧</h2>
-  <div class="item"><input type="checkbox"><div><strong>Drink water regularly</strong><small>Stay hydrated throughout the day.</small></div></div>
-  <div class="item"><input type="checkbox"><div><strong>Get enough sleep</strong><small>Keep a consistent sleep schedule.</small></div></div>
-  <div class="item"><input type="checkbox"><div><strong>Keep it gentle</strong><small>Avoid harsh scrubs and picking at pimples.</small></div></div>
+  <div class="item"><input type="checkbox" data-habit="water" onchange="saveHabits()"><div><strong>Drink water regularly</strong><small>Stay hydrated throughout the day.</small></div></div>
+  <div class="item"><input type="checkbox" data-habit="sleep" onchange="saveHabits()"><div><strong>Get enough sleep</strong><small>Keep a consistent sleep schedule.</small></div></div>
+  <div class="item"><input type="checkbox" data-habit="gentle" onchange="saveHabits()"><div><strong>Keep it gentle</strong><small>Avoid harsh scrubs and picking at pimples.</small></div></div>
 </section>
 
 <footer>GlowCare © 2026 · Simple care, every day.</footer>
@@ -88,7 +88,17 @@ footer{text-align:center;padding:25px;color:#92968a;font-size:12px}
 
 <script>
 let period = 'morning';
-let checked = {};
+
+function loadData(key, fallback) {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+let checked = loadData('glowcare_checked', {});
 const routines = {
   morning: [
     ['Cleanse','Use a gentle cleanser, or rinse with water if appropriate.'],
@@ -101,7 +111,29 @@ const routines = {
     ['Keep it simple','Avoid adding multiple strong active ingredients at once.']
   ]
 };
-function makeRoutine(){
+
+function saveSkin() {
+  localStorage.setItem('glowcare_skin', JSON.stringify(
+    document.getElementById('skin').value
+  ));
+}
+
+function saveHabits() {
+  const habits = {};
+  document.querySelectorAll('[data-habit]').forEach(box => {
+    habits[box.dataset.habit] = box.checked;
+  });
+  localStorage.setItem('glowcare_habits', JSON.stringify(habits));
+}
+
+function loadHabits() {
+  const habits = loadData('glowcare_habits', {});
+  document.querySelectorAll('[data-habit]').forEach(box => {
+    box.checked = !!habits[box.dataset.habit];
+  });
+}
+
+function makeRoutine() {
   const skin = document.getElementById('skin').value;
   const notes = {
     normal:'Choose comfortable, gentle basics.',
@@ -111,37 +143,56 @@ function makeRoutine(){
     sensitive:'Prefer fragrance-free products and patch-test new products.',
     unsure:'Start with gentle cleanser, moisturizer and sunscreen.'
   };
+  saveSkin();
   alert('Your skin-care note: ' + notes[skin]);
   render();
 }
-function setTime(value){
-  period=value;
-  document.getElementById('morning').classList.toggle('active',value==='morning');
-  document.getElementById('night').classList.toggle('active',value==='night');
+
+function setTime(value) {
+  period = value;
+  document.getElementById('morning').classList.toggle('active', value === 'morning');
+  document.getElementById('night').classList.toggle('active', value === 'night');
   render();
 }
-function render(){
-  const list=routines[period];
-  document.getElementById('routineTitle').textContent=period==='morning'?'Your morning ritual':'Your night ritual';
-  document.getElementById('routine').innerHTML=list.map((item,i)=>
-    '<div class="item"><input type="checkbox" '+(checked[period+i]?'checked':'')+' onchange="toggle('+i+',this.checked)"><div><strong>'+item[0]+'</strong><small>'+item[1]+'</small></div></div>'
+
+function render() {
+  const list = routines[period];
+  document.getElementById('routineTitle').textContent =
+    period === 'morning' ? 'Your morning ritual' : 'Your night ritual';
+
+  document.getElementById('routine').innerHTML = list.map((item, i) =>
+    '<div class="item"><input type="checkbox" ' +
+    (checked[period + i] ? 'checked' : '') +
+    ' onchange="toggle(' + i + ',this.checked)"><div><strong>' +
+    item[0] + '</strong><small>' + item[1] +
+    '</small></div></div>'
   ).join('');
+
   updateProgress();
 }
-function toggle(i,value){
-  checked[period+i]=value;
+
+function toggle(i, value) {
+  checked[period + i] = value;
+  localStorage.setItem('glowcare_checked', JSON.stringify(checked));
   updateProgress();
 }
-function updateProgress(){
-  const total=routines[period].length;
-  const done=routines[period].filter((_,i)=>checked[period+i]).length;
-  document.getElementById('count').textContent=done+'/'+total;
-  document.getElementById('bar').style.width=(done/total*100)+'%';
+
+function updateProgress() {
+  const total = routines[period].length;
+  const done = routines[period].filter((_, i) => checked[period + i]).length;
+  document.getElementById('count').textContent = done + '/' + total;
+  document.getElementById('bar').style.width = (done / total * 100) + '%';
 }
-function resetRoutine(){
-  routines[period].forEach((_,i)=>delete checked[period+i]);
+
+function resetRoutine() {
+  routines[period].forEach((_, i) => delete checked[period + i]);
+  localStorage.setItem('glowcare_checked', JSON.stringify(checked));
   render();
 }
+
+document.getElementById('skin').value =
+  loadData('glowcare_skin', 'normal');
+loadHabits();
 render();
 </script>
 
